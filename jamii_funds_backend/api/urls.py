@@ -34,6 +34,7 @@ from .views import (
     InterestEntryViewSet,
     ProfitDistributionViewSet,
     register,          # <-- your custom register view
+    MembershipViewSet,
 )
 
 # ----------------------------------------------------------------------
@@ -46,6 +47,7 @@ router.register(r'contributions', ContributionViewSet, basename='contribution')
 router.register(r'loans', LoanViewSet, basename='loan')
 router.register(r'interests', InterestEntryViewSet, basename='interest')
 router.register(r'profit-distributions', ProfitDistributionViewSet, basename='profitdistribution')
+router.register(r'memberships', MembershipViewSet, basename='membership')
 
 # ----------------------------------------------------------------------
 # 3. URL patterns
@@ -57,6 +59,7 @@ urlpatterns = [
     path('auth/register/', register, name='register'),                 # custom register
     path('auth/login/', TokenObtainPairView.as_view(), name='login'),  # JWT login
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
 
     # ------------------------------------------------------------------
     # Protected API resources (all ViewSets)

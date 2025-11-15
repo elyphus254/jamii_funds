@@ -1,17 +1,17 @@
 # api/views.py
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 
 from .models import (
-    Chama, Member, Contribution, Loan, InterestEntry, ProfitDistribution
+    Chama, Member, Contribution, Loan, InterestEntry, ProfitDistribution, Membership
 )
 from .serializers import (
     ChamaSerializer, MemberSerializer, ContributionSerializer,
-    LoanSerializer, InterestEntrySerializer, ProfitDistributionSerializer
+    LoanSerializer, InterestEntrySerializer, ProfitDistributionSerializer, MembershipSerializer
 )
 
 User = get_user_model()
@@ -72,3 +72,8 @@ class InterestEntryViewSet(viewsets.ModelViewSet):
 class ProfitDistributionViewSet(viewsets.ModelViewSet):
     queryset = ProfitDistribution.objects.all()
     serializer_class = ProfitDistributionSerializer
+
+class MembershipViewSet(viewsets.ModelViewSet):
+    queryset = Membership.objects.all()
+    serializer_class = MembershipSerializer
+    permission_classes = [IsAuthenticated]    

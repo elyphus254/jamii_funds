@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "drf_spectacular",  # Optional: API docs
     'django_extensions',
+    'drf_yasg',
 
     # Local apps
     "auth_app",

@@ -31,3 +31,8 @@ class ProfitDistributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProfitDistribution
         fields = '__all__'
+
+class MembershipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Membership
+        fields = ['id', 'member', 'chama', 'joined_date']
