@@ -36,33 +36,6 @@
 | SMS        | [Africa's Talking](https://africastalking.com) |
 
 ---
-
-## 🚀 Quick Start (For Developers)
-
-### 1. Clone the repo
-```bash
-git clone https://github.com/elyphus254/jamii_funds.git
-cd jamii_funds
-
----
-
-## Step-by-Step: Add This to Your Repo (VS Studio)
-
-### 1. In Visual Studio
-1. Open your `jamii_funds` project  
-2. Right-click solution → **Open Folder in File Explorer**  
-3. Create new file: `README.md`  
-4. Paste the template above  
-5. Edit:
-   - Replace placeholder text
-   - Add real screenshot later (`/assets/screenshot.png`)
-   - Update tech stack
-
-### 2. Commit & Push
-```bash
-git add README.md
-git commit -m "Add professional README with Kenyan context"
-git push
 # Jamii Funds
 
 A Django-based REST API for managing Kenyan Chama (savings groups) with M-Pesa integration. Handles contributions, loans, repayments, and more.
@@ -105,3 +78,32 @@ A Django-based REST API for managing Kenyan Chama (savings groups) with M-Pesa i
 - Env vars: `DEBUG=False`, `SECRET_KEY=...`
 
 Built with ❤️ for Kenyan hustlers. Contributions welcome!
+
+## 🚀 Quick Start (For Developers)
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/elyphus254/jamii_funds.git
+cd jamii_funds
+
+---
+
+## Step-by-Step: Add This to Your Repo (VS Studio)
+
+### 1. In Visual Studio
+1. Open your `jamii_funds` project  
+2. Right-click solution → **Open Folder in File Explorer**  
+3. Create new file: `README.md`  
+4. Paste the template above  
+5. Edit:
+   - Replace placeholder text
+   - Add real screenshot later (`/assets/screenshot.png`)
+   - Update tech stack
+
+### 2. Commit & Push
+```bash
+git add README.md
+git commit -m "Add professional README with Kenyan context"
+git push
+# Jamii Funds
+
