@@ -1,162 +1,159 @@
 {
   "info": {
-    "name": "JamiiFunds API",
-    "_postman_id": "7e6b3e2a-bf55-4ad5-8232-1f94f4a9b7c1",
-    "description": "Postman Collection for JamiiFunds Django Backend API",
+    "name": "Chama Welfare API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Auth",
+      "name": "Members",
       "item": [
         {
-          "name": "Register User",
+          "name": "Get All Members",
+          "request": { "method": "GET", "url": "/api/members/" }
+        },
+        {
+          "name": "Create Member",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "/api/members/",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"12345678\"\n}"
-            },
-            "url": { "raw": "http://127.0.0.1:8000/api/auth/register/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "auth", "register", ""] }
+              "raw": "{\"name\": \"John Doe\", \"phone\": \"0712345678\", \"email\": \"john@example.com\", \"national_id\": \"12345678\"}"
+            }
           }
         },
         {
-          "name": "Login User",
+          "name": "Get Member by ID",
+          "request": { "method": "GET", "url": "/api/members/1/" }
+        },
+        {
+          "name": "Update Member",
           "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "method": "PUT",
+            "url": "/api/members/1/",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"12345678\"\n}"
-            },
-            "url": { "raw": "http://127.0.0.1:8000/api/auth/login/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "auth", "login", ""] }
+              "raw": "{\"name\": \"John Updated\", \"phone\": \"0711111111\", \"email\": \"john.u@example.com\", \"national_id\": \"12345678\"}"
+            }
           }
         },
         {
-          "name": "Get User Profile",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Token {{token}}" }
-            ],
-            "url": { "raw": "http://127.0.0.1:8000/api/auth/profile/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "auth", "profile", ""] }
-          }
+          "name": "Delete Member",
+          "request": { "method": "DELETE", "url": "/api/members/1/" }
         }
       ]
     },
+
     {
-      "name": "Core",
+      "name": "Chamas",
       "item": [
+        {
+          "name": "Get All Chamas",
+          "request": { "method": "GET", "url": "/api/chamas/" }
+        },
         {
           "name": "Create Chama",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Token {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "url": "/api/chamas/",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Unity Welfare\",\n  \"description\": \"A welfare group for members\"\n}"
-            },
-            "url": { "raw": "http://127.0.0.1:8000/api/core/chamas/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "core", "chamas", ""] }
+              "raw": "{\"name\": \"Unity Welfare\", \"description\": \"A welfare group\", \"created_at\": \"2025-01-01\"}"
+            }
           }
-        },
+        }
+      ]
+    },
+
+    {
+      "name": "Contributions",
+      "item": [
         {
-          "name": "List Chamas",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Token {{token}}" }
-            ],
-            "url": { "raw": "http://127.0.0.1:8000/api/core/chamas/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "core", "chamas", ""] }
-          }
+          "name": "Get All Contributions",
+          "request": { "method": "GET", "url": "/api/contributions/" }
         },
         {
           "name": "Create Contribution",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Token {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "url": "/api/contributions/",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"chama\": 1,\n  \"amount\": 1000\n}"
-            },
-            "url": { "raw": "http://127.0.0.1:8000/api/core/contributions/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "core", "contributions", ""] }
-          }
-        },
-        {
-          "name": "Request Loan",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Token {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"chama\": 1,\n  \"amount\": 5000,\n  \"reason\": \"Emergency\"\n}"
-            },
-            "url": { "raw": "http://127.0.0.1:8000/api/core/loans/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "core", "loans", ""] }
-          }
-        },
-        {
-          "name": "View Loans",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Token {{token}}" }
-            ],
-            "url": { "raw": "http://127.0.0.1:8000/api/core/loans/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "core", "loans", ""] }
+              "raw": "{\"member\": 1, \"chama\": 1, \"amount\": 500, \"date\": \"2025-11-01\"}"
+            }
           }
         }
       ]
     },
+
     {
-      "name": "M-Pesa",
+      "name": "Loans",
       "item": [
         {
-          "name": "STK Push Simulation",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone_number\": \"254712345678\",\n  \"amount\": 100\n}"
-            },
-            "url": { "raw": "http://127.0.0.1:8000/api/mpesa/stkpush/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "mpesa", "stkpush", ""] }
-          }
+          "name": "Get All Loans",
+          "request": { "method": "GET", "url": "/api/loans/" }
         },
         {
-          "name": "M-Pesa Callback Simulation",
+          "name": "Create Loan",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "url": "/api/loans/",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"Body\": {\n    \"stkCallback\": {\n      \"ResultCode\": 0,\n      \"ResultDesc\": \"The service request is processed successfully.\"\n    }\n  }\n}"
-            },
-            "url": { "raw": "http://127.0.0.1:8000/api/mpesa/callback/", "protocol": "http", "host": ["127.0.0.1"], "port": "8000", "path": ["api", "mpesa", "callback", ""] }
+              "raw": "{\"member\": 1, \"chama\": 1, \"principal\": 3000, \"interest_rate\": 5, \"due_date\": \"2025-12-31\"}"
+            }
           }
         }
       ]
-    }
-  ],
-  "variable": [
+    },
+
     {
-      "key": "token",
-      "value": ""
+      "name": "Interests",
+      "item": [
+        {
+          "name": "Get All Interests",
+          "request": { "method": "GET", "url": "/api/interests/" }
+        },
+        {
+          "name": "Create Interest Entry",
+          "request": {
+            "method": "POST",
+            "url": "/api/interests/",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"loan\": 1, \"amount\": 150, \"month\": \"2025-10-01\"}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Profit Distributions",
+      "item": [
+        {
+          "name": "Get All Distributions",
+          "request": { "method": "GET", "url": "/api/profit-distributions/" }
+        },
+        {
+          "name": "Create Distribution",
+          "request": {
+            "method": "POST",
+            "url": "/api/profit-distributions/",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"chama\": 1, \"year\": 2024, \"total_profit\": 100000, \"distributed_date\": \"2025-01-10\"}"
+            }
+          }
+        }
+      ]
     }
   ]
 }

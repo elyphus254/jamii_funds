@@ -1,6 +1,9 @@
-from django.urls import path
-from .views import stk_callback
+# daraja/urls.py
+from django.urls import path, include
+from . import views
 
 urlpatterns = [
-    path('callback/', stk_callback, name='stk_callback'),
+    path('stk-push/', views.initiate_stk_push, name='stk_push'),
+    path('callback/', views.mpesa_callback, name='callback'),
+    path('core/', include('core.urls')),
 ]

@@ -1,81 +1,74 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+# api/views.py
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from core.models import *
-from .serializers import *
-from django.db.models import Sum
-from decimal import Decimal
+from rest_framework import status, viewsets
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model
 
+from .models import (
+    Chama, Member, Contribution, Loan, InterestEntry, ProfitDistribution
+)
+from .serializers import (
+    ChamaSerializer, MemberSerializer, ContributionSerializer,
+    LoanSerializer, InterestEntrySerializer, ProfitDistributionSerializer
+)
+
+User = get_user_model()
+
+
+# ------------------------------------------------------------------
+# 1. PUBLIC: Register
+# ------------------------------------------------------------------
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    phone = request.data.get('phone')
+    email = request.data.get('email', '')
+
+    if not all([username, password, phone]):
+        return Response({'error': 'username, password, phone required'}, status=400)
+
+    if User.objects.filter(username=username).exists():
+        return Response({'error': 'Username taken'}, status=400)
+
+    user = User.objects.create_user(username=username, password=password, email=email)
+    Member.objects.create(user=user, name=username, phone=phone, email=email)
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+        'user': {'id': user.id, 'username': user.username}
+    }, status=201)
+
+
+# ------------------------------------------------------------------
+# 2. VIEWSETS (add only the ones you need now)
+# ------------------------------------------------------------------
 class ChamaViewSet(viewsets.ModelViewSet):
     queryset = Chama.objects.all()
     serializer_class = ChamaSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
+    permission_classes = [AllowAny]  # tighten later
 
 class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all()
     serializer_class = MemberSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
 
 class ContributionViewSet(viewsets.ModelViewSet):
     queryset = Contribution.objects.all()
     serializer_class = ContributionSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
 
 class LoanViewSet(viewsets.ModelViewSet):
     queryset = Loan.objects.all()
     serializer_class = LoanSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
 
 class InterestEntryViewSet(viewsets.ModelViewSet):
     queryset = InterestEntry.objects.all()
     serializer_class = InterestEntrySerializer
-    permission_classes = [permissions.IsAuthenticated]
-
 
 class ProfitDistributionViewSet(viewsets.ModelViewSet):
-    queryset = ProfitDistribution.objects.select_related('chama').all().order_by('-created_at')
+    queryset = ProfitDistribution.objects.all()
     serializer_class = ProfitDistributionSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    @action(detail=True, methods=["post"])
-    def compute(self, request, pk=None):
-        pd = self.get_object()
-        if pd.computed:
-            return Response({"detail": "Already computed"}, status=status.HTTP_400_BAD_REQUEST)
-
-        entries = InterestEntry.objects.filter(
-            loan__chama=pd.chama,
-            recorded_at__date__gte=pd.period_start,
-            recorded_at__date__lte=pd.period_end
-        )
-        total_interest = entries.aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-        pd.total_interest_collected = total_interest
-
-        contributions = Contribution.objects.filter(
-            chama=pd.chama, status='confirmed',
-            created_at__date__gte=pd.period_start,
-            created_at__date__lte=pd.period_end
-        )
-        total_contrib = contributions.aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-
-        results = {}
-        if total_contrib > 0:
-            members = pd.chama.members.all()
-            for m in members:
-                member_sum = contributions.filter(member=m).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-                share = (Decimal(member_sum) / Decimal(total_contrib)) * total_interest
-                results[str(m.id)] = {
-                    "member_id": m.member_id,
-                    "member_name": m.person.username,
-                    "contributed": str(member_sum),
-                    "share": str(round(share, 2))
-                }
-
-        pd.results = results
-        pd.computed = True
-        pd.save()
-        return Response({"message": "Profit distribution computed", "results": results})

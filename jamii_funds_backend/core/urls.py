@@ -1,9 +1,12 @@
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ChamaViewSet, MemberViewSet, LoanViewSet
+from . import views
 
 router = DefaultRouter()
-router.register('chamas', ChamaViewSet)
-router.register('members', MemberViewSet)
-router.register('loans', LoanViewSet)
+router.register(r'chamas', views.ChamaViewSet)
+router.register(r'members', views.MemberViewSet)
+router.register(r'loans', views.LoanViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('', include(router.urls)),
+]
