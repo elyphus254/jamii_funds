@@ -1,16 +1,21 @@
-# api/models.py
+# core/models.py
 from __future__ import annotations
 
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from django.db import models
+from django.db import models, transaction
 from django.core.validators import MinValueValidator
 from django.utils import timezone
+from django.conf import settings
 
-# ----------------------------------------------------------------------
-# 1. Chama (Savings Group)
-# ----------------------------------------------------------------------
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractUser
+
+
+# ------------------------------------------------------------------
+# 1. CHAMA
+# ------------------------------------------------------------------
 class Chama(models.Model):
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
@@ -19,31 +24,29 @@ class Chama(models.Model):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "Chama"
-        verbose_name_plural = "Chamas"
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["name"])]
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["is_active"]),
+        ]
 
     def __str__(self) -> str:
         return self.name
 
-    # ----- Aggregations -------------------------------------------------
     def total_contributions(self) -> Decimal:
-        """Sum of all confirmed contributions in this chama."""
         total = self.contributions.aggregate(s=models.Sum("amount"))["s"]
         return total or Decimal("0.00")
 
     def total_loans_outstanding(self) -> Decimal:
-        """Principal of all loans that are not fully repaid."""
-        total = self.loans.filter(status__in=["Pending", "Approved"]).aggregate(
-            s=models.Sum("principal")
-        )["s"]
+        total = self.loans.filter(
+            status__in=[Loan.STATUS_PENDING, Loan.STATUS_APPROVED]
+        ).aggregate(s=models.Sum("principal"))["s"]
         return total or Decimal("0.00")
 
 
-# ----------------------------------------------------------------------
-# 2. Member
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------
+# 2. MEMBER
+# ------------------------------------------------------------------
 class Member(models.Model):
     name = models.CharField(max_length=255)
     phone = models.CharField(max_length=20, unique=True)
@@ -52,32 +55,33 @@ class Member(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="member_profile",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["phone"]),
             models.Index(fields=["national_id"]),
+            models.Index(fields=["is_active"]),
         ]
 
     def __str__(self) -> str:
         return self.name
 
-    # ----- Convenience --------------------------------------------------
-    def total_contributed(self) -> Decimal:
-        total = self.contributions.aggregate(s=models.Sum("amount"))["s"]
-        return total or Decimal("0.00")
-
-    def active_loans_balance(self) -> Decimal:
-        total = self.loans.filter(status__in=["Pending", "Approved"]).aggregate(
-            s=models.Sum("principal")
-        )["s"]
-        return total or Decimal("0.00")
+    @property
+    def active_memberships(self):
+        return self.memberships.filter(is_active=True)
 
 
-# ----------------------------------------------------------------------
-# 3. Membership (Member ↔ Chama bridge)
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------
+# 3. MEMBERSHIP
+# ------------------------------------------------------------------
 class Membership(models.Model):
     member = models.ForeignKey(
         Member, on_delete=models.CASCADE, related_name="memberships"
@@ -92,14 +96,19 @@ class Membership(models.Model):
     class Meta:
         unique_together = ("member", "chama")
         ordering = ["-joined_at"]
+        indexes = [
+            models.Index(fields=["member", "chama"]),
+            models.Index(fields=["is_admin"]),
+            models.Index(fields=["is_active"]),
+        ]
 
     def __str__(self) -> str:
         return f"{self.member.name} → {self.chama.name}"
 
 
-# ----------------------------------------------------------------------
-# 4. Contribution
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------
+# 4. CONTRIBUTION
+# ------------------------------------------------------------------
 class Contribution(models.Model):
     membership = models.ForeignKey(
         Membership, on_delete=models.CASCADE, related_name="contributions"
@@ -111,37 +120,40 @@ class Contribution(models.Model):
     )
     date = models.DateTimeField(default=timezone.now)
     transaction_ref = models.CharField(max_length=120, blank=True)
-    confirmed = models.BooleanField(default=False)   # M-Pesa callback, manual, etc.
+    confirmed = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-date"]
         indexes = [
-            models.Index(fields=["date"]),
             models.Index(fields=["membership"]),
+            models.Index(fields=["date"]),
+            models.Index(fields=["confirmed"]),
         ]
 
     def __str__(self) -> str:
-        return f"{self.membership.member.name} → {self.amount} ({self.date.date()})"
+        return f"{self.membership.member.name} → KES {self.amount}"
 
-    @property
-    def chama(self) -> Chama:
-        return self.membership.chama
-
-    @property
-    def member(self) -> Member:
-        return self.membership.member
+    def save(self, *args, **kwargs):
+        # Auto-link chama via membership
+        if not hasattr(self, "chama") and self.membership:
+            self.chama = self.membership.chama
+        super().save(*args, **kwargs)
 
 
-# ----------------------------------------------------------------------
-# 5. Loan
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------
+# 5. LOAN
+# ------------------------------------------------------------------
 class Loan(models.Model):
+    STATUS_PENDING = "Pending"
+    STATUS_APPROVED = "Approved"
+    STATUS_REJECTED = "Rejected"
+    STATUS_REPAID = "Repaid"
+
     STATUS_CHOICES = [
-        ("Pending", "Pending"),
-        ("Approved", "Approved"),
-        ("Rejected", "Rejected"),
-        ("Repaid", "Repaid"),
-        ("Defaulted", "Defaulted"),
+        (STATUS_PENDING, "Pending"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_REJECTED, "Rejected"),
+        (STATUS_REPAID, "Repaid"),
     ]
 
     membership = models.ForeignKey(
@@ -149,39 +161,33 @@ class Loan(models.Model):
     )
     principal = models.DecimalField(max_digits=12, decimal_places=2)
     interest_rate = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("1.50"),
-        help_text="Monthly interest rate in percent (e.g. 1.5 for 1.5%).",
-    )
+        max_digits=5, decimal_places=2, default=Decimal("1.50")
+    )  # % per month
     tenure_months = models.PositiveSmallIntegerField(default=12)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
+    )
     applied_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
-    disbursed_at = models.DateTimeField(null=True, blank=True)
-    due_date = models.DateField(null=True, blank=True)   # optional final deadline
 
     class Meta:
         ordering = ["-applied_at"]
         indexes = [
-            models.Index(fields=["status"]),
             models.Index(fields=["membership"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["applied_at"]),
         ]
 
     def __str__(self) -> str:
-        return f"Loan {self.principal} → {self.membership.member.name}"
+        return f"Loan KES {self.principal} → {self.membership.member.name}"
 
-    # ----- EMI & Repayment helpers ------------------------------------
     @property
     def monthly_rate(self) -> Decimal:
         return self.interest_rate / Decimal("100")
 
     @property
     def emi(self) -> Decimal:
-        """Equated Monthly Installment."""
-        p = self.principal
-        r = self.monthly_rate
-        n = self.tenure_months
+        p, r, n = self.principal, self.monthly_rate, self.tenure_months
         if r == 0:
             return p / n
         return p * r * (1 + r) ** n / ((1 + r) ** n - 1)
@@ -199,18 +205,20 @@ class Loan(models.Model):
     def balance_due(self) -> Decimal:
         return self.total_repayable - self.total_paid
 
-    @property
-    def chama(self) -> Chama:
-        return self.membership.chama
+    def approve(self, approved_by: "AbstractUser | None" = None) -> None:
+        if self.status != self.STATUS_PENDING:
+            raise ValueError("Only pending loans can be approved.")
+        with transaction.atomic():
+            self.status = self.STATUS_APPROVED
+            self.approved_at = timezone.now()
+            self.save()
+            # Optional: create first interest entry
+            # InterestEntry.record_for_loan(self)
 
-    @property
-    def member(self) -> Member:
-        return self.membership.member
 
-
-# ----------------------------------------------------------------------
-# 6. Repayment (optional – tracks each payment)
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------
+# 6. REPAYMENT
+# ------------------------------------------------------------------
 class Repayment(models.Model):
     loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name="repayments")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -219,59 +227,43 @@ class Repayment(models.Model):
 
     class Meta:
         ordering = ["-date"]
+        indexes = [models.Index(fields=["loan"]), models.Index(fields=["date"])]
 
     def __str__(self) -> str:
-        return f"Repayment {self.amount} on {self.loan}"
+        return f"Repayment KES {self.amount} on {self.loan}"
 
 
-# ----------------------------------------------------------------------
-# 7. InterestEntry (monthly accrual)
-# ----------------------------------------------------------------------
-class InterestEntry(models.Model):
-    loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name="interest_entries")
+# ------------------------------------------------------------------
+# 7. M-PESA TRANSACTION
+# ------------------------------------------------------------------
+class MpesaTransaction(models.Model):
+    TYPE_CONTRIBUTION = "Contribution"
+    TYPE_LOAN_REPAYMENT = "Loan Repayment"
+
+    TRANSACTION_TYPES = [
+        (TYPE_CONTRIBUTION, "Contribution"),
+        (TYPE_LOAN_REPAYMENT, "Loan Repayment"),
+    ]
+
+    phone = models.CharField(max_length=20)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    month = models.DateField()   # first day of the month
-    recorded_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("loan", "month")
-        ordering = ["-month"]
-
-    def __str__(self) -> str:
-        return f"Interest {self.amount} for {self.loan} ({self.month})"
-
-
-# ----------------------------------------------------------------------
-# 8. ProfitDistribution + per-member share
-# ----------------------------------------------------------------------
-class ProfitDistribution(models.Model):
-    chama = models.ForeignKey(
-        Chama, on_delete=models.CASCADE, related_name="profit_distributions"
+    transaction_type = models.CharField(
+        max_length=40, choices=TRANSACTION_TYPES, default=TYPE_CONTRIBUTION
     )
-    year = models.PositiveSmallIntegerField()
-    total_profit = models.DecimalField(max_digits=14, decimal_places=2)
-    distributed_date = models.DateField()
-    notes = models.TextField(blank=True)
+    checkout_request_id = models.CharField(max_length=120, blank=True, null=True)
+    mpesa_receipt = models.CharField(max_length=120, unique=True, blank=True, null=True)
+    status = models.CharField(max_length=40, default="Pending")
+    raw_callback = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("chama", "year")
-        ordering = ["-year"]
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["phone"]),
+            models.Index(fields=["mpesa_receipt"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["checkout_request_id"]),
+        ]
 
     def __str__(self) -> str:
-        return f"{self.chama.name} Profit {self.year}"
-
-
-class MemberProfitShare(models.Model):
-    distribution = models.ForeignKey(
-        ProfitDistribution, on_delete=models.CASCADE, related_name="shares"
-    )
-    membership = models.ForeignKey(Membership, on_delete=models.CASCADE)
-    share_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    paid = models.BooleanField(default=False)
-    paid_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        unique_together = ("distribution", "membership")
-
-    def __str__(self) -> str:
-        return f"{self.membership.member.name} → {self.share_amount}"
+        return f"{self.phone} - KES {self.amount} ({self.transaction_type})"

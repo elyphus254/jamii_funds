@@ -1,39 +1,36 @@
-# settings.py
+# jamii_funds_backend/settings.py
 from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Load .env file (recommended)
+# Load .env (never commit secrets!)
 load_dotenv()
-
-print("DEBUG from env =", os.getenv("DJANGO_DEBUG"))
 
 # =============================================================================
 # CORE SETTINGS
 # =============================================================================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv(
     "DJANGO_SECRET_KEY",
-    "django-insecure-change-me-in-production-please"
+    "django-insecure-please-change-me-in-production-1234567890"
 )
 
-# SECURITY WARNING: don't run with debug turned on in production!
+# SECURITY: Never True in production
 DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
-
-print("DEBUG =", DEBUG)
-
-
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
+# Production: use specific hosts
+ALLOWED_HOSTS = [
+    h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if h.strip()
+]
 
 # =============================================================================
 # APPLICATION DEFINITION
 # =============================================================================
 INSTALLED_APPS = [
-    # Django core
+    # Django
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -44,16 +41,17 @@ INSTALLED_APPS = [
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
-    "drf_spectacular",  # Optional: API docs
-    'django_extensions',
-    'drf_yasg',
+    "drf_spectacular",      # Swagger/Redoc
+    "django_extensions",    # shell_plus, etc.
+    "whitenoise.runserver_nostatic",  # Dev static
 
-    # Local apps
+    # Local
     "auth_app",
     "core",
     "api",
-    "daraja",
+    "daraja",  # M-Pesa
 ]
 
 # =============================================================================
@@ -61,7 +59,7 @@ INSTALLED_APPS = [
 # =============================================================================
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # For static files in prod
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -106,10 +104,14 @@ DATABASES = {
     }
 }
 
-# Use PostgreSQL in production
+# Auto-use PostgreSQL if DATABASE_URL is set (Render, Railway, etc.)
 if os.getenv("DATABASE_URL"):
     import dj_database_url
-    DATABASES["default"] = dj_database_url.parse(os.getenv("DATABASE_URL"))
+    DATABASES["default"] = dj_database_url.parse(
+        os.getenv("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=not DEBUG
+    )
 
 # =============================================================================
 # AUTHENTICATION
@@ -142,10 +144,18 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # =============================================================================
-# CORS
+# CORS (Production: NEVER allow all!)
 # =============================================================================
-CORS_ALLOW_ALL_ORIGINS = False  # NEVER in production
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,https://jamii-funds.vercel.app"
+    ).split(",")
+    if origin.strip()
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 # =============================================================================
 # REST FRAMEWORK
@@ -157,9 +167,13 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",  # Optional
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_FILTER_BACKENDS": [
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
 }
 
 # =============================================================================
@@ -173,7 +187,47 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
 }
+
+# =============================================================================
+# SPECTACULAR (Swagger/Redoc)
+# =============================================================================
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Jamii Funds API",
+    "DESCRIPTION": "Transparent Chama management with M-Pesa integration",
+    "VERSION": "1.0.0",
+    "CONTACT": {"name": "Elyphus", "url": "https://github.com/elyphus254"},
+    "LICENSE": {"name": "MIT"},
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_SETTINGS": {"deepLinking": True},
+    "COMPONENT_SPLIT_REQUEST": True,
+}
+
+# =============================================================================
+# M-PESA DARAJA
+# =============================================================================
+MPESA = {
+    "CONSUMER_KEY": os.getenv("MPESA_CONSUMER_KEY"),
+    "CONSUMER_SECRET": os.getenv("MPESA_CONSUMER_SECRET"),
+    "SHORTCODE": os.getenv("MPESA_SHORTCODE"),
+    "PASSKEY": os.getenv("MPESA_PASSKEY"),
+    "CALLBACK_URL": os.getenv("MPESA_CALLBACK_URL", "https://yourdomain.com/daraja/c2b/"),
+    "ENV": os.getenv("MPESA_ENV", "sandbox"),  # sandbox or production
+    "CERTIFICATE": os.getenv("MPESA_CERT_PATH"),  # Optional for production
+}
+
+# =============================================================================
+# EMAIL (SMTP)
+# =============================================================================
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Jamii Funds <noreply@jamii.funds>")
 
 # =============================================================================
 # LOGGING
@@ -181,27 +235,30 @@ SIMPLE_JWT = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
     },
     "root": {
         "handlers": ["console"],
         "level": "INFO",
     },
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "daraja": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
+    },
 }
 
-MPESA = {
-    'CONSUMER_KEY': os.getenv('MPESA_CONSUMER_KEY'),
-    'CONSUMER_SECRET': os.getenv('MPESA_CONSUMER_SECRET'),
-    'SHORTCODE': os.getenv('MPESA_SHORTCODE'),
-    'PASSKEY': os.getenv('MPESA_PASSKEY'),
-    'CALLBACK_URL': os.getenv('MPESA_CALLBACK_URL', 'https://yourdomain.com/daraja/callback/'),
-    'ENV': os.getenv('MPESA_ENV', 'sandbox'),  # sandbox or production
-}
 # =============================================================================
-# SECURITY (Production)
+# SECURITY (Production Only)
 # =============================================================================
 if not DEBUG:
     SECURE_SSL_REDIRECT = True

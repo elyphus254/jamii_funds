@@ -1,0 +1,18 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1 style="margin-bottom:20px;">📊 Chama Analytics Dashboard</h1>
+
+<div style="display:flex; flex-wrap:wrap; gap:20px;">
+
+    {% include "admin/components/card.html" with title="Total Members" value=total_members color="#3b82f6" %}
+    {% include "admin/components/card.html" with title="Total Chamas" value=total_chamas color="#6366f1" %}
+    {% include "admin/components/card.html" with title="Total Contributions" value=total_contributions color="#059669" %}
+    {% include "admin/components/card.html" with title="Total Loans Disbursed" value=total_loans color="#2563eb" %}
+    {% include "admin/components/card.html" with title="Outstanding Loans" value=outstanding_loans color="#dc2626" %}
+    {% include "admin/components/card.html" with title="Total Loan Repayments" value=total_repayments color="#7c3aed" %}
+    {% include "admin/components/card.html" with title="MPesa Inflow" value=mpesa_inflow color="#0f766e" %}
+
+</div>
+
+{% endblock %}
