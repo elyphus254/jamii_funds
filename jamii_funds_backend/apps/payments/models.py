@@ -1,12 +1,18 @@
 from django.db import models
 
-class MpesaTransaction(models.Model):
-    checkout_request_id = models.CharField(max_length=100, unique=True)
-    phone_number = models.CharField(max_length=15)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    mpesa_receipt_number = models.CharField(max_length=50, blank=True)
-    transaction_date = models.DateTimeField(null=True, blank=True)
+from apps.chamas.models import Member
+
+    
+class Payment(models.Model):
+    member = models.ForeignKey(Member, on_delete=models.CASCADE)
+    phone_number = models.CharField(max_length=20)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    checkout_request_id = models.CharField(max_length=200, null=True, blank=True)
+    merchant_request_id = models.CharField(max_length=200, null=True, blank=True)
+
+    status = models.CharField(max_length=20, default="Pending")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.phone_number} - {self.amount}"
+        return f"{self.member} - {self.amount} ({self.status})"

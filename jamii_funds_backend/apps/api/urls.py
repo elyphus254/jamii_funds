@@ -1,17 +1,18 @@
+# apps/api/urls.py
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
+# Import your viewsets
 from apps.chamas.views import ChamaViewSet
-from apps.contributions.views import ContributionViewSet
+#from apps.contributions.views import ContributionViewSet
+#from apps.payments.views import PaymentViewSet
 
 router = DefaultRouter()
-router.register(r"chamas", ChamaViewSet)
-router.register(r'contributions', ContributionViewSet, basename='contribution')
+router.register(r'chamas', ChamaViewSet, basename='chama')
+#router.register(r'contributions', ContributionViewSet, basename='contribution')
+#router.register(r'payments', PaymentViewSet, basename='payment')
 
 urlpatterns = [
-    path("", include(router.urls)),
-    path("schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
-    path("redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    path('', include(router.urls)),
 ]

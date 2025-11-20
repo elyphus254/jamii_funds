@@ -1,8 +1,11 @@
+# chamas/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ChamaViewSet
+from . import views
 
 router = DefaultRouter()
-router.register(r"", ChamaViewSet)
+router.register(r'chamas', views.ChamaViewSet, basename='chama')
 
-urlpatterns = [path("", include(router.urls))]
+urlpatterns = [
+    path('api/', include(router.urls)),
+]

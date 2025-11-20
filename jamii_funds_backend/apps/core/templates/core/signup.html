@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Start Your Chama Today - Jamii Funds</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-green-50">
+<div class="min-h-screen flex items-center justify-center">
+    <div class="bg-white p-10 rounded-xl shadow-2xl max-w-md w-full">
+        <h1 class="text-3xl font-bold text-green-700 text-center mb-2">Jamii Funds</h1>
+        <p class="text-center text-gray-600 mb-8">Start your chama in 60 seconds – Free 14-day trial</p>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="bg-{% if message.tags == 'error' %}red{% else %}green{% endif %}-100 text-{% if message.tags == 'error' %}red{% else %}green{% endif %}-800 p-3 rounded mb-4">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+            <input type="text" name="name" placeholder="Chama Name (e.g. Nyeri Teachers)" required
+                   class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-green-600">
+
+            <div class="flex">
+                <input type="text" name="subdomain" placeholder="yourchama" required
+                       class="flex-1 px-4 py-3 border rounded-l-lg focus:outline-none">
+                <span class="bg-gray-200 px-4 py-3 rounded-r-lg text-gray-700">.jamiifunds.co.ke</span>
+            </div>
+
+            <input type="email" name="email" placeholder="Admin Email" required
+                   class="w-full px-4 py-3 border rounded-lg">
+            <input type="text" name="phone" placeholder="07xxxxxxxx" required
+                   class="w-full px-4 py-3 border rounded-lg">
+            <input type="password" name="password" placeholder="Create Password" required
+                   class="w-full px-4 py-3 border rounded-lg">
+
+            <button type="submit" class="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-700">
+                Start Free Trial (KES 0)
+            </button>
+        </form>
+
+        <p class="text-center text-sm text-gray-500 mt-6">
+            After 14 days: KES 999/month • Cancel anytime
+        </p>
+    </div>
+</div>
+</body>
+</html>
